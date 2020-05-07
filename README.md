@@ -1,2 +1,3 @@
-# idma-mobility
-IDMA and XBR data market: Mobility and Cities
+# IDMA/XBR Examples
+
+IDMA / XBR data markets getting started, examples and demo apps.
