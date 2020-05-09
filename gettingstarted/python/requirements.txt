@@ -1,0 +1,1 @@
+autobahn[twisted,encryption,compress,serialization,scram,xbr]>=20.4.1
