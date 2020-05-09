@@ -22,6 +22,7 @@ from autobahn.twisted.util import sleep
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 from autobahn.twisted.xbr import SimpleSeller
 
+from .probe import HttpProbe
 
 class XbrDelegate(ApplicationSession):
 
@@ -42,6 +43,13 @@ class XbrDelegate(ApplicationSession):
                       pubkey=self._key.public_key())
 
         self._running = True
+
+        self._probes = {}
+
+    def init_probe(self, url):
+        probe_id = uuid.UUID()
+        self._probes[probe_id] = HttpProbe(url, repeat=5)
+        return probe_id.bytes
 
     def onUserError(self, fail, msg):
         self.log.error(msg)
