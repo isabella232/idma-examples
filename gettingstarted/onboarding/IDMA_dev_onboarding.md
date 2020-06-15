@@ -24,7 +24,7 @@ All major interactions with the XBR network and a data market (including the ini
 
 For the browser-based flows we are currently using the MetaMask browser extension, which works in either Chrome or Firefox.
 
-To set up MetaMask, follow [these instructions](linktoinstructions).
+To set up MetaMask, follow [these instructions](https://github.com/crossbario/idma-examples/blob/master/gettingstarted/onboarding/installing_metamask.md).
 
 Once you have installed this and created or imported a wallet you want to use for your interactions with the XBR network, you can proceed to the next step.
 
@@ -37,7 +37,7 @@ To start registration with the XBR Network, go to
 
 For registration with the XBR Network you need to provide a valid eamil address, a username and the address of the wallet you want to use for participation in the XBR Network. 
 
-You also need to allow the site to connect to the MetaMask installed in your browser. To so just press "SIGN" in the MetaMask confirmation window that pops up. 
+You also need to allow the site to connect to the MetaMask installed in your browser. To so just press "CONNECT" in the MetaMask confirmation window that pops up. 
 
 Note: All you are granting here is for our site make further requests to MetaMask. You retain full control over each further step that requires signing by MetaMask and will need to sign each further request (e.g. for joining the XBR Network) individually. All further signatures with MetaMask are also only for that specific request or action. If you want to feel extra-safe then we suggest creating an account in MetaMask which you only use for the IDMA.
 
@@ -116,15 +116,11 @@ Check your email and click on the link in the verification mail. This takes you 
 
 ## Accessing an IDMA Test Data Market
 
-Once you have joined, you also need to login to the IDMA test data market.
+Once you have joined, you can accees the IDMA test data market.
 
-The IDMA test data markets are run on a different domain from the XBR network, so you first need to allow the site for the market you have joined to connect with MetaMask. Click "SIGN" on the MetaMask confirmation dialog that pops up. 
+The IDMA test data markets are run on a different domain from the XBR network, so you first need to allow the site for the market you have joined to connect with MetaMask. Click "CONNECT" on the MetaMask confirmation dialog that pops up. 
 
-For the login, put in the email address you used for registering with the XBR Network. Then click "LOGIN" and confirm the login request in MetaMask by clicking "SIGN" in the MetaMask confirmation window that pops up.
-
-You should now see a confirmatin screen which tells you about the login verification email sent to your email account.
-
-Please check your email and click on the confirmation link in it. This will open up the UI page for the IDMA test data market that you have joined in your browser.
+You then need to sign a MetaMask request that confirms to the test data market that you want to access it in this browser.
 
 
 ## Next Steps
