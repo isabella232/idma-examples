@@ -1,8 +1,10 @@
 # coding=utf8
 
 import sys
-import binascii
+import pyqrcode
 import argparse
+import binascii
+
 from pprint import pformat
 
 import eth_keys
@@ -19,31 +21,20 @@ from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 from autobahn.wamp.serializer import CBORSerializer
 from autobahn.wamp import cryptosign
 
-from autobahn.xbr import unpack_uint256
+from autobahn.xbr import unpack_uint256, load_or_create_profile
 
 
 class XbrDelegate(ApplicationSession):
 
     def __init__(self, config=None):
-        self.log.info('{klass}.__init__(config={config})', klass=self.__class__.__name__, config=config)
-
         ApplicationSession.__init__(self, config)
-
         self._ethkey_raw = config.extra['ethkey']
         self._ethkey = eth_keys.keys.PrivateKey(self._ethkey_raw)
         self._ethadr = web3.Web3.toChecksumAddress(self._ethkey.public_key.to_canonical_address())
-
-        self.log.info("Client (delegate) Ethereum key loaded (adr=0x{adr})",
-                      adr=self._ethadr)
-
         self._key = cryptosign.SigningKey.from_key_bytes(config.extra['cskey'])
-        self.log.info("Client (delegate) WAMP-cryptosign authentication key loaded (pubkey=0x{pubkey})",
-                      pubkey=self._key.public_key())
-
         self._running = True
 
     def onUserError(self, fail, msg):
-        self.log.error(msg)
         self.leave('wamp.error', msg)
 
     async def onJoin(self, details):
@@ -118,28 +109,6 @@ if __name__ == '__main__':
                         action='store_true',
                         help='Enable debug output.')
 
-    parser.add_argument('--url',
-                        dest='url',
-                        type=str,
-                        default='ws://localhost:8070/ws',
-                        help='The router URL (default: "ws://localhost:8070/ws").')
-
-    parser.add_argument('--realm',
-                        dest='realm',
-                        type=str,
-                        default='idma',
-                        help='The realm to join (default: "idma").')
-
-    parser.add_argument('--ethkey',
-                        dest='ethkey',
-                        type=str,
-                        help='Member private Ethereum key (32 bytes as HEX encoded string)')
-
-    parser.add_argument('--cskey',
-                        dest='cskey',
-                        type=str,
-                        help='Member client private WAMP-cryptosign authentication key (32 bytes as HEX encoded string)')
-
     args = parser.parse_args()
 
     if args.debug:
@@ -147,12 +116,21 @@ if __name__ == '__main__':
     else:
         txaio.start_logging(level='info')
 
+    profile = load_or_create_profile()
+
+    privkey = eth_keys.keys.PrivateKey(profile.ethkey)
+    adr_raw = privkey.public_key.to_canonical_address()
+    eth_adr = web3.Web3.toChecksumAddress(adr_raw)
+    eth_adr_qr = pyqrcode.create(eth_adr, error='L', mode='binary').terminal()
+    print('Delegate Ethereum address is {}:\n{}'.format(eth_adr, eth_adr_qr))
+
     extra = {
-        'ethkey': binascii.a2b_hex(args.ethkey),
-        'cskey': binascii.a2b_hex(args.cskey),
+        'ethkey': profile.ethkey,
+        'cskey': profile.cskey,
     }
 
-    runner = ApplicationRunner(url=args.url, realm=args.realm, extra=extra, serializers=[CBORSerializer()])
+    runner = ApplicationRunner(url=profile.market_url, realm=profile.market_realm, extra=extra,
+                               serializers=[CBORSerializer()])
 
     try:
         runner.run(XbrDelegate, auto_reconnect=True)

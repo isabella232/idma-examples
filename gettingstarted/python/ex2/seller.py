@@ -1,20 +1,13 @@
 # coding=utf8
 
-import txaio
-txaio.use_twisted()
-
-from txaio import time_ns, make_logger
-
-import argparse
-import treq
-
 import sys
-import binascii
+import pyqrcode
 import argparse
+import binascii
+import uuid
 
 import eth_keys
 import web3
-import uuid
 
 import txaio
 txaio.use_twisted()
@@ -22,108 +15,33 @@ txaio.use_twisted()
 from twisted.internet import reactor
 from twisted.internet.error import ReactorNotRunning
 
-from autobahn.wamp.types import PublishOptions
-from autobahn.wamp.serializer import CBORSerializer
-from autobahn.wamp import cryptosign
-
 from autobahn.twisted.util import sleep
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 from autobahn.twisted.xbr import SimpleSeller
 
-
-class HttpProbe(object):
-    """
-    HTTP test probe able to measure response time and size to a testee URL.
-    """
-    log = make_logger()
-
-    def __init__(self, url, reactor=None, headers=None, timeout=5, repeat=5):
-        """
-
-        :param reactor: Twisted reactor to run under.
-        :param url: URL of the testee to issue HTTP request to.
-        :param headers: optional HTTP header to send when testing the target URL.
-        :param timeout: Timeout in seconds for each request.
-        :param repeat: Number of requests to issue (sequentially). Results are collected for all requests.
-        """
-        if reactor is None:
-            from twisted.internet import reactor
-        self._reactor = reactor
-        self._url = url
-        self._headers = headers
-        self._timeout = timeout
-        self._repeat = repeat
-
-    async def run(self):
-        """
-        Issue the test request setup and collect results.
-
-        :return: Collected results for all requests (the number of requests is determined by ``repeat``).
-        """
-        results = []
-        for i in range(self._repeat):
-            res = await self._do_request()
-            results.append(res)
-        return results
-
-    async def _do_request(self):
-        res = {
-            'received': 0,
-            'started': time_ns(),
-        }
-
-        def collect(data):
-            res['received'] += len(data)
-
-        # https://treq.readthedocs.io/en/release-20.3.0/api.html#treq.request
-        # https://twistedmatrix.com/documents/current/api/twisted.web.iweb.IResponse.html
-        response = await treq.get(self._url, reactor=self._reactor, headers=self._headers, timeout=self._timeout,
-                                  persistent=False, allow_redirects=False, browser_like_redirects=False)
-
-        res['version'] = 'HTTP/{}.{}'.format(response.version[1], response.version[2])
-        res['code'] = response.code
-        res['length'] = response.length
-
-        await treq.collect(response, collect)
-
-        res['ended'] = time_ns()
-        res['duration'] = res['ended'] - res['started']
-        return res
+from autobahn.wamp.serializer import CBORSerializer
+from autobahn.wamp.types import PublishOptions
+from autobahn.wamp import cryptosign
+from autobahn.xbr import unpack_uint256, load_or_create_profile
 
 
 class XbrDelegate(ApplicationSession):
 
     def __init__(self, config=None):
-        self.log.info('{klass}.__init__(config={config})', klass=self.__class__.__name__, config=config)
-
         ApplicationSession.__init__(self, config)
-
         self._ethkey_raw = config.extra['ethkey']
         self._ethkey = eth_keys.keys.PrivateKey(self._ethkey_raw)
         self._ethadr = web3.Web3.toChecksumAddress(self._ethkey.public_key.to_canonical_address())
-
-        self.log.info("Client (delegate) Ethereum key loaded (adr=0x{adr})",
-                      adr=self._ethadr)
-
         self._key = cryptosign.SigningKey.from_key_bytes(config.extra['cskey'])
-        self.log.info("Client (delegate) WAMP-cryptosign authentication key loaded (pubkey=0x{pubkey})",
-                      pubkey=self._key.public_key())
-
         self._running = True
-
-        self._probes = {}
-
-    def init_probe(self, url):
-        probe_id = uuid.UUID()
-        self._probes[probe_id] = HttpProbe(url, repeat=5)
-        return probe_id.bytes
 
     def onUserError(self, fail, msg):
         self.log.error(msg)
         self.leave('wamp.error', msg)
 
     async def onJoin(self, details):
-        print('Seller session joined', details)
+        self.log.info('{klass}.onJoin(details={details})', klass=self.__class__.__name__, details=details)
+
         try:
             delegate_key = self._ethkey_raw
             delegate_adr = self._ethkey.public_key.to_canonical_address()
@@ -164,8 +82,10 @@ class XbrDelegate(ApplicationSession):
 
                 counter += 1
                 await sleep(1)
-        except:
+        except Exception as e:
             self.log.failure()
+            self.config.extra['error'] = e
+        finally:
             self.leave()
 
     def onLeave(self, details):
@@ -200,28 +120,6 @@ if __name__ == '__main__':
                         action='store_true',
                         help='Enable debug output.')
 
-    parser.add_argument('--url',
-                        dest='url',
-                        type=str,
-                        default='ws://localhost:8070/ws',
-                        help='The router URL (default: "ws://localhost:8070/ws").')
-
-    parser.add_argument('--realm',
-                        dest='realm',
-                        type=str,
-                        default='idma',
-                        help='The realm to join (default: "idma").')
-
-    parser.add_argument('--ethkey',
-                        dest='ethkey',
-                        type=str,
-                        help='Member private Ethereum key (32 bytes as HEX encoded string)')
-
-    parser.add_argument('--cskey',
-                        dest='cskey',
-                        type=str,
-                        help='Member client private WAMP-cryptosign authentication key (32 bytes as HEX encoded string)')
-
     args = parser.parse_args()
 
     if args.debug:
@@ -229,12 +127,21 @@ if __name__ == '__main__':
     else:
         txaio.start_logging(level='info')
 
+    profile = load_or_create_profile()
+
+    privkey = eth_keys.keys.PrivateKey(profile.ethkey)
+    adr_raw = privkey.public_key.to_canonical_address()
+    eth_adr = web3.Web3.toChecksumAddress(adr_raw)
+    eth_adr_qr = pyqrcode.create(eth_adr, error='L', mode='binary').terminal()
+    print('Delegate Ethereum address is {}:\n{}'.format(eth_adr, eth_adr_qr))
+
     extra = {
-        'ethkey': binascii.a2b_hex(args.ethkey),
-        'cskey': binascii.a2b_hex(args.cskey),
+        'ethkey': profile.ethkey,
+        'cskey': profile.cskey,
     }
 
-    runner = ApplicationRunner(url=args.url, realm=args.realm, extra=extra, serializers=[CBORSerializer()])
+    runner = ApplicationRunner(url=profile.market_url, realm=profile.market_realm, extra=extra,
+                               serializers=[CBORSerializer()])
 
     try:
         runner.run(XbrDelegate, auto_reconnect=True)
@@ -243,4 +150,3 @@ if __name__ == '__main__':
         sys.exit(1)
     else:
         sys.exit(0)
-        print('Seller session joined', details)
