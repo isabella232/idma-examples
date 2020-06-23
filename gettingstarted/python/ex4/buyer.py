@@ -1,5 +1,8 @@
 # coding=utf8
 
+# connect to WAMP router, join a XBR realm (with WAMP-cryptosign authentication), and
+# subscribe to (XBR encrypted) events buying data encryption keys
+
 import sys
 import pyqrcode
 import argparse

@@ -63,4 +63,19 @@ when first started, and the public address for that key is printed or made acces
 
 ### Opening XBR buyer/seller channels for your delegates
 
+Write me.
+
 ### Run your buyer/seller delegate
+
+Write me.
+
+## Examples
+
+* [ ] [ex1/connect.py](ex1/connect.py): Connecting to a WAMP router.
+* [ ] [ex2/producer.py](ex2/producer.py): WAMP client using PubSub and RPC as a data producer.
+* [ ] [ex2/consumer.py](ex2/consumer.py): WAMP client using PubSub and RPC as a data consumer.
+* [ ] [ex3/connect.py](ex3/connect.py): Connecting to a XBR market.
+* [ ] [ex4/seller.py](ex4/seller.py): Selling data via XBR using PubSub as a data producer ("WAMP publisher").
+* [ ] [ex4/buyer.py](ex4/buyer.py): Buying data via XBR using PubSub as a data consumer ("WAMP subscriber").
+* [ ] [ex5/seller.py](ex5/seller.py): Selling data via XBR using RPC as a data producer ("WAMP callee").
+* [ ] [ex5/buyer.py](ex5/buyer.py): Buying data via XBR using RPC as a data consumer ("WAMP caller")).
