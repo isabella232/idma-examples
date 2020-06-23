@@ -1,5 +1,13 @@
 # coding=utf8
 
+import txaio
+txaio.use_twisted()
+
+from txaio import time_ns, make_logger
+
+import argparse
+import treq
+
 import sys
 import binascii
 import argparse
@@ -22,7 +30,66 @@ from autobahn.twisted.util import sleep
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 from autobahn.twisted.xbr import SimpleSeller
 
-from .probe import HttpProbe
+
+class HttpProbe(object):
+    """
+    HTTP test probe able to measure response time and size to a testee URL.
+    """
+    log = make_logger()
+
+    def __init__(self, url, reactor=None, headers=None, timeout=5, repeat=5):
+        """
+
+        :param reactor: Twisted reactor to run under.
+        :param url: URL of the testee to issue HTTP request to.
+        :param headers: optional HTTP header to send when testing the target URL.
+        :param timeout: Timeout in seconds for each request.
+        :param repeat: Number of requests to issue (sequentially). Results are collected for all requests.
+        """
+        if reactor is None:
+            from twisted.internet import reactor
+        self._reactor = reactor
+        self._url = url
+        self._headers = headers
+        self._timeout = timeout
+        self._repeat = repeat
+
+    async def run(self):
+        """
+        Issue the test request setup and collect results.
+
+        :return: Collected results for all requests (the number of requests is determined by ``repeat``).
+        """
+        results = []
+        for i in range(self._repeat):
+            res = await self._do_request()
+            results.append(res)
+        return results
+
+    async def _do_request(self):
+        res = {
+            'received': 0,
+            'started': time_ns(),
+        }
+
+        def collect(data):
+            res['received'] += len(data)
+
+        # https://treq.readthedocs.io/en/release-20.3.0/api.html#treq.request
+        # https://twistedmatrix.com/documents/current/api/twisted.web.iweb.IResponse.html
+        response = await treq.get(self._url, reactor=self._reactor, headers=self._headers, timeout=self._timeout,
+                                  persistent=False, allow_redirects=False, browser_like_redirects=False)
+
+        res['version'] = 'HTTP/{}.{}'.format(response.version[1], response.version[2])
+        res['code'] = response.code
+        res['length'] = response.length
+
+        await treq.collect(response, collect)
+
+        res['ended'] = time_ns()
+        res['duration'] = res['ended'] - res['started']
+        return res
+
 
 class XbrDelegate(ApplicationSession):
 
