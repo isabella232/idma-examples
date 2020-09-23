@@ -33,7 +33,7 @@ Once you have installed this and created or imported a wallet you want to use fo
 
 To start registration with the XBR Network, go to
 
-    https://planet.xbr.network/register
+[https://planet.xbr.network/register](https://planet.xbr.network/register)
 
 For registration with the XBR Network you need to provide a valid eamil address, a username and the address of the wallet you want to use for participation in the XBR Network. 
 
